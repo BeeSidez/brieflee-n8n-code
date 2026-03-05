@@ -1,5 +1,4 @@
 const items = $input.all();
-
 const cleanText = (text) => {
   if (!text) return "";
   return text
@@ -21,13 +20,11 @@ const cleanText = (text) => {
     .replace(/\s+/g, " ")
     .trim();
 };
-
 const calculateAspectRatio = (width, height) => {
   const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
   const divisor = gcd(width, height);
   return `${width / divisor}:${height / divisor}`;
 };
-
 const formatDuration = (seconds) => {
   if (!seconds) return "0s";
   const mins = Math.floor(seconds / 60);
@@ -42,46 +39,40 @@ const checklist = Array.isArray(qaRaw)
   ? qaRaw.map(item => typeof item === 'string' ? item : (item.label || item)).filter(Boolean)
   : typeof qaRaw === 'string' ? qaRaw.split(',').map(s => s.trim()).filter(Boolean)
   : [];
-const checkedItems = checklist.length > 0
-  ? checklist.join(', ')
-  : '';
+const checklistSet = new Set(checklist.map(i => i.toLowerCase().trim()));
+const isChecked = (...labels) => labels.some(l => checklistSet.has(l.toLowerCase().trim()));
 
-// --- Account thresholds (only matter when no brief; default NONE) ---
-// Map checklist labels to threshold field names on account record
-const thresholdMap = {
-  'Product visibility':    { field: 'product_screen_time',  label: 'Product Screen Time' },
-  'Hook quality':          { field: 'hook_speed',           label: 'Hook Speed' },
-  'Visual hook':           { field: 'visual_hook',          label: 'Visual Hook' },
-  'Audio clarity':         { field: 'audio_clarity',        label: 'Audio Clarity' },
-  'Brand name mentioned':  { field: 'brand_mentions',       label: 'Brand Mentions' },
-  'Text legibility':       { field: 'text_legibility',      label: 'Text Legibility' },
-  'Scene pacing':          { field: 'engagement_pacing',    label: 'Engagement Pacing' },
-  'Creator visibility':    { field: 'face_time',            label: 'Face Time' },
-  'CTA present':           { field: 'cta_placement',        label: 'CTA Placement' },
+// Static fallback so the Vertex AI prompt node doesn't break
+const checkedItems = "No items need to be checked";
+
+// --- Rules from CSV (column B) ---
+const RULES = {
+  productVisibility: "Product means the product in any form: packaging, removed from packaging, being applied, used, worn, consumed, demonstrated, visible results of use, close-ups, in hands, on body, in mouth, on a surface, or any scene with active interaction even if the product is not the dominant visual element.",
+  hookQuality: "Rate how effectively the audio hook would stop someone scrolling. This refers to what the viewer hears: spoken words, opening sounds, or any audio that makes someone pay attention. Any hook type can score highly if it is compelling enough. A score between 80 and 100 means the audio immediately creates a reason to keep watching, opens a loop, sparks curiosity, or says something unexpected so the viewer would stop scrolling to hear what comes next. A score between 60 and 79 means the audio gets some attention but does not fully commit the viewer; the opening is decent but predictable or takes too long to land. A score below 60 means the audio is generic, boring, or slow to start, for example an unremarkable greeting with no follow-up hook and nothing that would make someone stop scrolling.",
+  visualHook: "Rate how effectively the visual opening would stop someone scrolling. This refers to what the viewer sees: framing, movement, action, objects, or any visual surprise that grabs attention. Any visual approach can score highly if it is compelling enough. A score between 80 and 100 means the visuals are immediately eye-catching and something in the frame makes you stop and look, such as unexpected visuals, creative framing, strong movement, action, or something visually unusual. A score between 60 and 79 means there is some visual interest but nothing that demands attention, for example standard product demos, basic setups, or ordinary framing. A score below 60 means the opening uses a static talking head, a generic setup, or nothing visually interesting is happening in the first moments.",
+  brandAlignment: "Rate whether the content matches the brand's visual identity, tone, and values as defined in the brand guidelines. A score between 80 and 100 means the content feels on-brand and the tone, colours, language, and overall vibe align with the brand guidelines provided. A score between 60 and 79 means the content is mostly on-brand but some elements feel off, such as tone in certain moments, colours or styling that do not quite match, or language that does not fully fit the brand voice. A score below 60 means the content feels off-brand and the tone, visuals, or messaging clash with the brand identity.",
+  followsTheBrief: "Compare the video against every requirement listed in the brief, including talking points, product messaging, tone of voice, content structure, specific phrases, and any stated dos and don'ts, and treat each requirement as a checkpoint. A score between 80 and 100 means all key brief requirements are addressed, the main talking points are included, the tone matches, and the structure follows the direction in the brief. A score between 60 and 79 means most requirements are met but there are notable omissions, such as a missed talking point, tone that is slightly off, or a deviation from the requested structure. A score below 60 means multiple brief requirements are ignored or misunderstood so the content feels like the creator did not read or follow the brief carefully.",
+  audioDelivery: "Rate how the creator delivers spoken content, focusing on performance and presentation rather than technical audio quality. A score between 80 and 100 means the delivery is confident and natural with good pacing and variation in tone, it does not sound scripted or robotic, and it is engaging to listen to. A score between 60 and 79 means the delivery is acceptable but flat, perhaps monotone, overly rehearsed, slightly rushed or hesitant, and lacking energy or a conversational feel. A score below 60 means the delivery is poor, with stumbling, awkward pauses, obvious script reading, whispering, or pacing that makes it hard to follow.",
+  lightingCamera: "Rate the lighting and camera clarity. A score between 80 and 100 means the video is well lit with natural or intentional lighting, the face and product are clearly visible, the footage is stable, the framing is good, and the resolution is appropriate for the platform. A score between 60 and 79 means the lighting and camera work are adequate but have noticeable issues such as being slightly dark, minor shakiness, awkward framing, or mixed lighting temperatures. A score below 60 means the video is poorly lit with dark scenes or harsh shadows on the face or product, the footage is shaky or unstable, the subject is out of focus, or the framing cuts off key elements.",
+  settingBackground: "Rate whether the environment supports the content and does not detract from the message. A score between 80 and 100 means the setting is clean and intentional, fits the content, and the background either adds helpful context or stays neutral without drawing attention, with no clutter or distracting elements. A score between 60 and 79 means the setting is acceptable but has minor issues, such as being slightly messy, not quite matching the product or brand vibe, or feeling like an unplanned or last-minute choice. A score below 60 means the setting is distracting or inappropriate, with visible mess, an unflattering environment, or a background that clashes with the product or undermines credibility.",
+  distractingElements: "Flag anything that pulls viewer attention away from the creator, product, or message. A score between 80 and 100 means there are no meaningful distractions and viewer focus stays on the content throughout. A score between 60 and 79 means there are minor distractions such as some background movement, brief interruptions, notification sounds, slight wardrobe issues, or other people partially visible in ways that do not dominate the frame. A score below 60 means there are major distractions such as people walking through the frame, pets or children interrupting, loud background noise that competes with speech, visible competitor logos, or TVs and screens playing prominently in the background.",
+  energyAuthenticity: "Rate whether the creator feels genuine and engaged, without judging them against a single personality type. Both high-energy and low-energy styles can score well if they feel authentic and appropriate for the content. A score between 80 and 100 means the creator feels natural and invested, their delivery matches the product and audience, and they come across as someone who actually uses or cares about what they are showing. A score between 60 and 79 means the performance feels slightly forced, flat, or performative, as if the creator is going through the motions rather than truly connecting with the content. A score below 60 means the creator appears clearly disengaged, reads a script with no conviction, or is so exaggerated that it feels fake, making it unlikely that a viewer would believe they use or like the product.",
+  wardrobeAppearance: "Rate whether the creator's appearance is appropriate for the content and brand, focusing on intentionality rather than personal style preferences. A score between 80 and 100 means the creator looks put together and appropriate for the product and brand, their appearance does not distract from the message, and any look or vibe specified in the brief has been followed. A score between 60 and 79 means the appearance is acceptable but slightly off, for example not quite matching the brand tone, looking unconsidered, or showing minor grooming issues that catch the eye. A score below 60 means the appearance actively undermines the content, such as being visibly unkempt in a way that clashes with the brand, wearing competitor logos, or looking so mismatched with the product that it harms credibility.",
+  productUsage: "Rate how the creator demonstrates or interacts with the product, focusing on usage quality rather than simple screen time. A score between 80 and 100 means the product is used naturally and correctly, demonstrated the way a real user would apply, wear, consume, or handle it in a believable context, and the usage matches any instructions given in the brief. A score between 60 and 79 means the product is shown being used but the interaction feels awkward, rushed, staged, or incomplete, the creator seems unfamiliar with it, or they skip key usage moments the viewer would expect to see. A score below 60 means the product is barely interacted with, used incorrectly, or handled in a way that makes it look bad so the creator treats it more like a prop than something they would actually use.",
+  inspirationLinkMatch: "When an example or inspiration video has been provided with the brief, compare the submission against it for structural and stylistic alignment rather than exact replication. The creator should capture the spirit of the reference, not copy it frame for frame. A score between 80 and 100 means the submission clearly draws from the inspiration, with similar structure, pacing, energy, hook style, or creative approach, and it feels like the creator studied the reference and adapted it in their own way. A score between 60 and 79 means there are some similarities, but key elements that made the inspiration work are missing, such as different pacing, a weaker hook, or a failure to capture the tone or energy. A score below 60 means there is no visible connection to the inspiration video and it feels like the creator did not watch it or chose to ignore it. If no inspiration link was provided at all, set the score for this metric to 0 and do not provide a qualitative evaluation."
 };
 
-const accountRecord = $('Get accounts').first().json;
-
-// Build threshold section string — only for checked items that have a value set
-const thresholdLines = checklist
-  .filter(item => thresholdMap[item] && accountRecord[thresholdMap[item].field])
-  .map(item => {
-    const { field, label } = thresholdMap[item];
-    return `- ${label}: ${accountRecord[field]}`;
-  });
-const thresholdSection = thresholdLines.length > 0
-  ? thresholdLines.join('\n')
-  : 'No thresholds set — evaluate all checked items as informational observations.';
+const DO_NOT_CHECK = "DO NOT CHECK THIS";
 
 const brief = items.map((item) => {
-  // Brand context (KEEP — no brief means brand context is the only direction)
-  const brandBio = cleanText(accountRecord.brand_bio);
-  const brandVoice = cleanText(accountRecord.brand_voice);
-  const brandCta = cleanText(accountRecord.brand_cta);
-  const targetAudience = cleanText(accountRecord.target_audience);
-  const painPoints = cleanText(accountRecord.audience_pain_points);
-  const objectives = cleanText(accountRecord.audience_objectives);
-  const niche = cleanText(accountRecord.niche);
+  // Brand context
+  const brandBio = cleanText($('Get accounts').first().json.brand_bio);
+  const brandVoice = cleanText($('Get accounts').first().json.brand_voice);
+  const brandCta = cleanText($('Get accounts').first().json.brand_cta);
+  const targetAudience = cleanText($('Get accounts').first().json.target_audience);
+  const painPoints = cleanText($('Get accounts').first().json.audience_pain_points);
+  const objectives = cleanText($('Get accounts').first().json.audience_objectives);
+  const niche = cleanText($('Get accounts').first().json.niche);
 
   // Submission notes
   const submissionNotes = cleanText($('Get Submission').first().json.submission_notes);
@@ -96,9 +87,83 @@ const brief = items.map((item) => {
   const videoResolution = (videoWidth && videoHeight) ? `${videoWidth}x${videoHeight}` : '';
   const videoFrameRate = $('cloudinary1').first().json.frame_rate ?? '';
 
+  // --- Threshold helper ---
+  const accounts = $('Get accounts').first().json;
+  const getThreshold = (field) => {
+    const val = accounts[field];
+    if (val === undefined || val === null) return "";
+    if (typeof val === 'object') return "";
+    const str = String(val).trim().toLowerCase();
+    if (str === "" || str === "none" || str === "0") return "";
+    return String(val).trim();
+  };
+
+  // --- Threshold-mapped items (Map = TRUE) ---
+  const pstThresh = getThreshold("product_screen_time_threshold");
+  const productScreenTime = (pstThresh || isChecked("Product visibility"))
+    ? (pstThresh ? pstThresh + ". " : "") + RULES.productVisibility
+    : DO_NOT_CHECK;
+
+  const hsThresh = getThreshold("hook_speed_threshold");
+  const hookSpeed = (hsThresh || isChecked("Hook quality"))
+    ? (hsThresh ? hsThresh + ". " : "") + RULES.hookQuality
+    : DO_NOT_CHECK;
+
+  const vhThresh = getThreshold("visual_hook_threshold");
+  const visualHook = (vhThresh || isChecked("Visual hook"))
+    ? (vhThresh ? vhThresh + ". " : "") + RULES.visualHook
+    : DO_NOT_CHECK;
+
+  const ctaThresh = getThreshold("cta_placement_threshold");
+  const ctaPlacement = (ctaThresh || isChecked("CTA present"))
+    ? ctaThresh || "CTA present"
+    : DO_NOT_CHECK;
+
+  const ftThresh = getThreshold("face_time_threshold");
+  const faceTime = (ftThresh || isChecked("Creator visibility"))
+    ? ftThresh || "Creator visibility"
+    : DO_NOT_CHECK;
+
+  const tlThresh = getThreshold("text_legibility_threshold");
+  const textLegibility = (tlThresh || isChecked("Text legibility", "Closed captions"))
+    ? tlThresh || "Text legibility"
+    : DO_NOT_CHECK;
+
+  const acThresh = getThreshold("audio_clarity_threshold");
+  const audioClarity = (acThresh || isChecked("Audio clarity"))
+    ? acThresh || "Audio clarity"
+    : DO_NOT_CHECK;
+
+  const epThresh = getThreshold("engagement_pacing_threshold");
+  const engagementPacing = (epThresh || isChecked("Scene pacing"))
+    ? epThresh || "Scene pacing"
+    : DO_NOT_CHECK;
+
+  const bmThresh = getThreshold("brand_mention_count_threshold");
+  const brandMentions = (bmThresh || isChecked("Brand name mentioned"))
+    ? bmThresh || "Brand name mentioned"
+    : DO_NOT_CHECK;
+
+  // --- Checklist-only items (Map = FALSE) ---
+  const brandBriefAlignment   = isChecked("Brand alignment") ? RULES.brandAlignment : DO_NOT_CHECK;
+  const copyright             = isChecked("Copyright check") ? "Copyright check" : DO_NOT_CHECK;
+  const closedCaptions        = isChecked("Closed captions") ? (tlThresh || "Closed captions") : DO_NOT_CHECK;
+  const followsTheBrief       = isChecked("Follows the brief") ? RULES.followsTheBrief : DO_NOT_CHECK;
+  const audioDelivery         = isChecked("Audio delivery") ? RULES.audioDelivery : DO_NOT_CHECK;
+  const pronunciation         = isChecked("Pronunciation") ? "Pronunciation" : DO_NOT_CHECK;
+  const musicSoundBalance     = isChecked("Music & sound balance") ? "Music & sound balance" : DO_NOT_CHECK;
+  const lightingCamera        = isChecked("Lighting & camera") ? RULES.lightingCamera : DO_NOT_CHECK;
+  const settingBackground     = isChecked("Setting & background") ? RULES.settingBackground : DO_NOT_CHECK;
+  const distractingElements   = isChecked("Distracting elements") ? RULES.distractingElements : DO_NOT_CHECK;
+  const safeZones             = isChecked("Safe zones") ? "Safe zones" : DO_NOT_CHECK;
+  const watchableOnMute       = isChecked("Watchable on mute") ? "Watchable on mute" : DO_NOT_CHECK;
+  const energyAuthenticity    = isChecked("Energy & authenticity") ? RULES.energyAuthenticity : DO_NOT_CHECK;
+  const wardrobeAppearance    = isChecked("Wardrobe & appearance") ? RULES.wardrobeAppearance : DO_NOT_CHECK;
+  const productUsage          = isChecked("Product usage") ? RULES.productUsage : DO_NOT_CHECK;
+  const inspirationLinkMatch  = isChecked("Inspiration link match") ? RULES.inspirationLinkMatch : DO_NOT_CHECK;
+
   return {
     checkedItems,
-    thresholdSection,
     brandBio,
     brandVoice,
     brandCta,
@@ -112,8 +177,32 @@ const brief = items.map((item) => {
     videoResolution,
     videoAspectRatio,
     videoFrameRate,
-    videoDuration
+    videoDuration,
+    productScreenTime,
+    hookSpeed,
+    visualHook,
+    ctaPlacement,
+    faceTime,
+    textLegibility,
+    audioClarity,
+    engagementPacing,
+    brandMentions,
+    brandBriefAlignment,
+    copyright,
+    closedCaptions,
+    followsTheBrief,
+    audioDelivery,
+    pronunciation,
+    musicSoundBalance,
+    lightingCamera,
+    settingBackground,
+    distractingElements,
+    safeZones,
+    watchableOnMute,
+    energyAuthenticity,
+    wardrobeAppearance,
+    productUsage,
+    inspirationLinkMatch
   };
 });
-
 return brief;
