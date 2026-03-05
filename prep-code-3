@@ -1,0 +1,113 @@
+const items = $input.all();
+
+const cleanText = (text) => {
+  if (!text) return "";
+  return text
+    .replace(/[\u{1F600}-\u{1F64F}]/gu, "")
+    .replace(/[\u{1F300}-\u{1F5FF}]/gu, "")
+    .replace(/[\u{1F680}-\u{1F6FF}]/gu, "")
+    .replace(/[\u{1F1E0}-\u{1F1FF}]/gu, "")
+    .replace(/[\u{2600}-\u{26FF}]/gu, "")
+    .replace(/[\u{2700}-\u{27BF}]/gu, "")
+    .replace(/[\u{FE00}-\u{FE0F}]/gu, "")
+    .replace(/[\u{200D}]/gu, "")
+    .replace(/[\u{20E3}]/gu, "")
+    .replace(/[\u{E0020}-\u{E007F}]/gu, "")
+    .replace(/[\u{1F900}-\u{1F9FF}]/gu, "")
+    .replace(/[\u{1FA00}-\u{1FA6F}]/gu, "")
+    .replace(/[\u{1FA70}-\u{1FAFF}]/gu, "")
+    .replace(/[\*\(\)\[\]\•\n]/g, "")
+    .replace(/[^\x20-\x7E\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const calculateAspectRatio = (width, height) => {
+  const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+  const divisor = gcd(width, height);
+  return `${width / divisor}:${height / divisor}`;
+};
+
+const formatDuration = (seconds) => {
+  if (!seconds) return "0s";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  if (mins === 0) return `${secs}s`;
+  return `${mins}m ${secs}s`;
+};
+
+// --- QA CHECKLIST from submission ---
+const qaRaw = $('Get Submission').first().json.qa_checklist || [];
+const checklist = Array.isArray(qaRaw)
+  ? qaRaw.map(item => typeof item === 'string' ? item : (item.label || item)).filter(Boolean)
+  : typeof qaRaw === 'string' ? qaRaw.split(',').map(s => s.trim()).filter(Boolean)
+  : [];
+const checkedItems = checklist.length > 0
+  ? checklist.map(item => `- ${item}`).join(', ')
+  : '';
+
+const brief = items.map((item) => {
+  // Brand context (KEEP for swipe files - needed for adapted script)
+  const brandBio = cleanText($('Get accounts').first().json.brand_bio);
+  const brandVoice = cleanText($('Get accounts').first().json.brand_voice);
+  const brandCta = cleanText($('Get accounts').first().json.brand_cta);
+  const targetAudience = cleanText($('Get accounts').first().json.target_audience);
+  const painPoints = cleanText($('Get accounts').first().json.audience_pain_points);
+  const objectives = cleanText($('Get accounts').first().json.audience_objectives);
+  const niche = cleanText($('Get accounts').first().json.niche);
+
+  // Submission notes
+  const submissionNotes = cleanText($('Get Submission').first().json.submission_notes);
+
+  // Video metadata from Cloudinary
+  const videoWidth = $('cloudinary3').first().json.width ?? 0;
+  const videoHeight = $('cloudinary3').first().json.height ?? 0;
+  const videoAspectRatio = (videoWidth && videoHeight) ? calculateAspectRatio(videoWidth, videoHeight) : '';
+  const videoDuration = formatDuration($('cloudinary3').first().json.duration);
+
+  // Threshold variables - empty for swipe files (all INFO, no pass/fail)
+  const engagementPacing = "";
+  const productScreenTime = "";
+  const textLegibility = "";
+  const ctaPlacement = "";
+  const audioClarity = "";
+  const hookSpeed = "";
+  const faceTime = "";
+  const brandMentions = "";
+  const visualHook = "";
+
+  // Video metadata - keep for backward compatibility
+  const videoFormat = ($('cloudinary3').first().json.format || '').toUpperCase();
+  const videoSize = $('cloudinary3').first().json.bytes ? ($('cloudinary3').first().json.bytes / (1000 * 1000)).toFixed(1) : "0";
+  const videoResolution = (videoWidth && videoHeight) ? `${videoWidth}x${videoHeight}` : '';
+  const videoFrameRate = $('cloudinary3').first().json.frame_rate ?? '';
+
+  return {
+    checkedItems,
+    brandBio,
+    brandVoice,
+    brandCta,
+    targetAudience,
+    painPoints,
+    objectives,
+    niche,
+    submissionNotes,
+    videoFormat,
+    videoSize,
+    videoResolution,
+    videoAspectRatio,
+    videoFrameRate,
+    videoDuration,
+    engagementPacing,
+    productScreenTime,
+    textLegibility,
+    ctaPlacement,
+    audioClarity,
+    hookSpeed,
+    faceTime,
+    brandMentions,
+    visualHook
+  };
+});
+
+return brief;
