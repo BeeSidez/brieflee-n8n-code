@@ -1,0 +1,134 @@
+const items = $input.all();
+
+const cleanText = (text) => {
+  if (!text) return "";
+  return text
+    .replace(/[\u{1F600}-\u{1F64F}]/gu, "")
+    .replace(/[\u{1F300}-\u{1F5FF}]/gu, "")
+    .replace(/[\u{1F680}-\u{1F6FF}]/gu, "")
+    .replace(/[\u{1F1E0}-\u{1F1FF}]/gu, "")
+    .replace(/[\u{2600}-\u{26FF}]/gu, "")
+    .replace(/[\u{2700}-\u{27BF}]/gu, "")
+    .replace(/[\u{FE00}-\u{FE0F}]/gu, "")
+    .replace(/[\u{200D}]/gu, "")
+    .replace(/[\u{20E3}]/gu, "")
+    .replace(/[\u{E0020}-\u{E007F}]/gu, "")
+    .replace(/[\u{1F900}-\u{1F9FF}]/gu, "")
+    .replace(/[\u{1FA00}-\u{1FA6F}]/gu, "")
+    .replace(/[\u{1FA70}-\u{1FAFF}]/gu, "")
+    .replace(/[\*\(\)\[\]\•\n]/g, "")
+    .replace(/[^\x20-\x7E\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const calculateAspectRatio = (width, height) => {
+  const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+  const divisor = gcd(width, height);
+  return `${width / divisor}:${height / divisor}`;
+};
+
+const formatDuration = (seconds) => {
+  if (!seconds) return "0s";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  if (mins === 0) return `${secs}s`;
+  return `${mins}m ${secs}s`;
+};
+
+// --- QA CHECKLIST from submission ---
+const qaRaw = $('Get Submission').first().json.qa_checklist || [];
+const checklist = Array.isArray(qaRaw)
+  ? qaRaw.map(item => typeof item === 'string' ? item : (item.label || item)).filter(Boolean)
+  : typeof qaRaw === 'string' ? qaRaw.split(',').map(s => s.trim()).filter(Boolean)
+  : [];
+const checkedItems = checklist.length > 0
+  ? checklist.join(', ')
+  : '';
+
+// --- Brief thresholds ---
+const thresholdMap = {
+  'Product visibility':    { field: 'product_screen_time',  label: 'Product Screen Time' },
+  'Hook quality':          { field: 'hook_speed',           label: 'Hook Speed' },
+  'Visual hook':           { field: 'visual_hook',          label: 'Visual Hook' },
+  'Audio clarity':         { field: 'audio_clarity',        label: 'Audio Clarity' },
+  'Brand name mentioned':  { field: 'brand_mentions',       label: 'Brand Mentions' },
+  'Text legibility':       { field: 'text_legibility',      label: 'Text Legibility' },
+  'Scene pacing':          { field: 'engagement_pacing',    label: 'Engagement Pacing' },
+  'Creator visibility':    { field: 'face_time',            label: 'Face Time' },
+  'CTA present':           { field: 'cta_placement',        label: 'CTA Placement' },
+};
+
+const briefRecord = $('Get brief').first().json;
+
+const thresholdLines = checklist
+  .filter(item => thresholdMap[item] && briefRecord[thresholdMap[item].field])
+  .map(item => {
+    const { field, label } = thresholdMap[item];
+    return `- ${label}: ${briefRecord[field]}`;
+  });
+const thresholdSection = thresholdLines.length > 0
+  ? thresholdLines.join('\n')
+  : 'No thresholds set — evaluate all checked items as informational observations.';
+
+// --- Brief content ---
+const briefDescription = cleanText(briefRecord.brief_description);
+const briefAttachment = cleanText($('Extract from File').first().json.text || '');
+
+// --- Example analysis (conditional) ---
+const rawExampleAnalysis = briefRecord.example_video_analysis || '';
+const exampleAnalysis = rawExampleAnalysis
+  ? (typeof rawExampleAnalysis === 'string' ? rawExampleAnalysis : JSON.stringify(rawExampleAnalysis))
+  : '';
+
+// --- Revision context ---
+const parentReview = $('Get Parent Review').first().json;
+
+// Previous scores/feedback — the analysis array from the parent review
+const requestChanges = (() => {
+  const raw = parentReview.request_changes || parentReview.analysis || '';
+  if (!raw) return 'No previous analysis available.';
+  if (typeof raw === 'string') return cleanText(raw);
+  try { return JSON.stringify(raw); } catch { return 'Unable to parse previous analysis.'; }
+})();
+
+const requestMessage = cleanText(parentReview.request_message || parentReview.feedback_message || '');
+const previousRating = parentReview.overall_rating || '';
+const previousDecision = parentReview.ai_decision || '';
+const revisionNumber = $('Get Submission').first().json.revision_number || 1;
+
+const brief = items.map((item) => {
+  // Video metadata from Cloudinary (revision uses same cloudinary node as main brief flow)
+  const videoWidth = $('cloudinary').first().json.width ?? 0;
+  const videoHeight = $('cloudinary').first().json.height ?? 0;
+  const videoAspectRatio = (videoWidth && videoHeight) ? calculateAspectRatio(videoWidth, videoHeight) : '';
+  const videoDuration = formatDuration($('cloudinary').first().json.duration);
+  const videoFormat = ($('cloudinary').first().json.format || '').toUpperCase();
+  const videoSize = $('cloudinary').first().json.bytes ? ($('cloudinary').first().json.bytes / (1000 * 1000)).toFixed(1) : "0";
+  const videoResolution = (videoWidth && videoHeight) ? `${videoWidth}x${videoHeight}` : '';
+  const videoFrameRate = $('cloudinary').first().json.frame_rate ?? '';
+
+  const submissionNotes = cleanText($('Get Submission').first().json.submission_notes);
+
+  return {
+    checkedItems,
+    thresholdSection,
+    briefDescription,
+    briefAttachment,
+    exampleAnalysis,
+    requestChanges,
+    requestMessage,
+    previousRating,
+    previousDecision,
+    revisionNumber,
+    submissionNotes,
+    videoFormat,
+    videoSize,
+    videoResolution,
+    videoAspectRatio,
+    videoFrameRate,
+    videoDuration
+  };
+});
+
+return brief;
