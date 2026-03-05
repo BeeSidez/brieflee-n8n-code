@@ -1,0 +1,157 @@
+const submission = $('Get Submission').first().json;
+
+// normalise files
+const videoFiles = Array.isArray(submission.video_file || [])
+  ? submission.video_file
+  : [submission.video_file].filter(Boolean);
+const videoCount = videoFiles.length;
+
+// submission type
+const submissionType = submission.submission_type || '';
+const isLinkSubmission = submissionType === 'link';
+
+// --- ACCOUNT DATA ---
+const accountJson = $input.first().json;
+
+// --- CREDITS REMAINING ---
+const creditsRaw = accountJson['video_credits']
+  ?? accountJson['videos_remaining (usage)']
+  ?? accountJson['videos_remaining']
+  ?? 0;
+
+let creditsRemaining;
+if (Array.isArray(creditsRaw)) {
+  creditsRemaining = Number(creditsRaw[0] ?? 0);
+} else {
+  creditsRemaining = Number(creditsRaw ?? 0);
+}
+if (!Number.isFinite(creditsRemaining)) creditsRemaining = 0;
+
+// --- PAYMENT STATUS ---
+// Airtable lookup/linked fields return [{label: "paid", id: "..."}]
+const paymentRaw = accountJson['payment_status (billing)']
+  ?? accountJson['payment_status']
+  ?? '';
+
+let paymentStatus;
+if (Array.isArray(paymentRaw) && paymentRaw.length > 0) {
+  paymentStatus = String(paymentRaw[0].label ?? paymentRaw[0] ?? '').trim().toLowerCase();
+} else if (typeof paymentRaw === 'object' && paymentRaw !== null) {
+  paymentStatus = String(paymentRaw.label ?? '').trim().toLowerCase();
+} else {
+  paymentStatus = String(paymentRaw).trim().toLowerCase();
+}
+
+const hasActivePlan = paymentStatus === 'paid';
+const hasEnoughCredits = creditsRemaining > 0;
+const isBulk = videoCount > 1;
+
+const baseMeta = {
+  submissionId: submission.id,
+  creatorEmail: submission.creator_email || null,
+  creatorName: submission.creator_name || null,
+  users: submission.users || null,
+  accounts: submission.accounts,
+  creditsRemaining,
+  videoCount,
+  isBulk,
+  hasActivePlan,
+  hasEnoughCredits,
+  paymentStatus,
+};
+
+// 1) No active plan
+if (!hasActivePlan) {
+  return [
+    {
+      json: {
+        ...baseMeta,
+        system_title: 'Video not reviewed',
+        system_message:
+          'Your video was not reviewed because there is no active payment plan on this account. Please update your billing to continue.',
+      },
+    },
+  ];
+}
+
+// 2) Not enough credits
+if (!hasEnoughCredits) {
+  return [
+    {
+      json: {
+        ...baseMeta,
+        system_title: 'Video not reviewed',
+        system_message:
+          'Your video was not reviewed because there are not enough credits on this account. Please top up your credits and try again.',
+      },
+    },
+  ];
+}
+
+// 3) No files (only if not a link submission)
+if (!isLinkSubmission && videoCount === 0) {
+  return [
+    {
+      json: {
+        ...baseMeta,
+        system_title: 'Video not reviewed',
+        system_message:
+          'Your video was not reviewed because no video file was found in your submission. Please upload a video or provide a valid link and try again.',
+      },
+    },
+  ];
+}
+
+// 4) Single or link submission
+if (!isBulk) {
+  return [
+    {
+      json: {
+        ...submission,
+        hasActivePlan: true,
+        hasEnoughCredits: true,
+        paymentStatus,
+        isBulk: false,
+        videoCount,
+        creditsRemaining,
+        system_title: 'Video received',
+        system_message:
+          "Your video is being reviewed. You'll receive results shortly.",
+      },
+    },
+  ];
+}
+
+// 5) Bulk upload
+const items = videoFiles.map((file, index) => ({
+  json: {
+    hasActivePlan: true,
+    hasEnoughCredits: true,
+    paymentStatus,
+    isBulk: true,
+    parentSubmissionId: submission.id,
+    creator_name: submission.creator_name || null,
+    creator_email: submission.creator_email || null,
+    users: submission.users || null,
+    submission_type: submission.submission_type,
+    submission_notes: submission.submission_notes || null,
+    brief_attachment: submission.brief_attachment || null,
+    accounts: submission.accounts,
+    projects: submission.projects || null,
+    briefs: submission.briefs || null,
+    video_file: [file],
+    bulkIndex: index + 1,
+    bulkTotal: videoCount,
+    creditsRemaining,
+    fileName: file.filename || file.name || `video_${index + 1}`,
+    fileUrl: file.url,
+    fileSize: file.size || null,
+    system_title: index === 0 ? 'Bulk upload received' : null,
+    system_message:
+      index === 0
+        ? `${videoCount} videos are being reviewed. You'll receive results for each video as they complete.`
+        : null,
+  },
+}));
+
+return items;
