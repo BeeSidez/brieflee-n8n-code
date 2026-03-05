@@ -10,6 +10,22 @@ const videoCount = videoFiles.length;
 const submissionType = submission.submission_type || '';
 const isLinkSubmission = submissionType === 'link';
 
+// --- BULK VIDEO URLS (NEW) ---
+const bulkVideoUrlRaw = submission.bulk_video_url || null;
+let bulkVideoUrls = [];
+if (Array.isArray(bulkVideoUrlRaw)) {
+  bulkVideoUrls = bulkVideoUrlRaw.filter(Boolean);
+} else if (typeof bulkVideoUrlRaw === 'string' && bulkVideoUrlRaw.trim()) {
+  bulkVideoUrls = bulkVideoUrlRaw.split(/[\r\n]+/).map(u => u.trim()).filter(Boolean);
+}
+const bulkVideoCount = bulkVideoUrls.length;
+
+// --- LOGIC FIELD (NEW) ---
+const logicRaw = submission.logic || '';
+const logicLabel = typeof logicRaw === 'object'
+  ? (logicRaw.label || '')
+  : logicRaw;
+
 // --- ACCOUNT DATA ---
 const accountJson = $input.first().json;
 
@@ -28,7 +44,6 @@ if (Array.isArray(creditsRaw)) {
 if (!Number.isFinite(creditsRemaining)) creditsRemaining = 0;
 
 // --- PAYMENT STATUS ---
-// Airtable lookup/linked fields return [{label: "paid", id: "..."}]
 const paymentRaw = accountJson['payment_status (billing)']
   ?? accountJson['payment_status']
   ?? '';
@@ -44,7 +59,7 @@ if (Array.isArray(paymentRaw) && paymentRaw.length > 0) {
 
 const hasActivePlan = paymentStatus === 'paid';
 const hasEnoughCredits = creditsRemaining > 0;
-const isBulk = videoCount > 1;
+const isBulk = /bulk/i.test(logicLabel) || videoCount > 1 || bulkVideoCount > 0;
 
 const baseMeta = {
   submissionId: submission.id,
@@ -88,8 +103,8 @@ if (!hasEnoughCredits) {
   ];
 }
 
-// 3) No files (only if not a link submission)
-if (!isLinkSubmission && videoCount === 0) {
+// 3) No files (only if not a link submission and not bulk)
+if (!isLinkSubmission && !isBulk && videoCount === 0) {
   return [
     {
       json: {
@@ -122,8 +137,43 @@ if (!isBulk) {
   ];
 }
 
-// 5) Bulk upload
-const items = videoFiles.map((file, index) => ({
+// 5) Bulk upload — video files
+if (videoCount > 0) {
+  const items = videoFiles.map((file, index) => ({
+    json: {
+      hasActivePlan: true,
+      hasEnoughCredits: true,
+      paymentStatus,
+      isBulk: true,
+      parentSubmissionId: submission.id,
+      creator_name: submission.creator_name || null,
+      creator_email: submission.creator_email || null,
+      users: submission.users || null,
+      submission_type: submission.submission_type,
+      submission_notes: submission.submission_notes || null,
+      brief_attachment: submission.brief_attachment || null,
+      accounts: submission.accounts,
+      projects: submission.projects || null,
+      briefs: submission.briefs || null,
+      video_file: [file],
+      bulkIndex: index + 1,
+      bulkTotal: videoCount,
+      creditsRemaining,
+      fileName: file.filename || file.name || `video_${index + 1}`,
+      fileUrl: file.url,
+      fileSize: file.size || null,
+      system_title: index === 0 ? 'Bulk upload received' : null,
+      system_message:
+        index === 0
+          ? `${videoCount} videos are being reviewed. You'll receive results for each video as they complete.`
+          : null,
+    },
+  }));
+  return items;
+}
+
+// 6) Bulk upload — video URLs
+return bulkVideoUrls.map((url, index) => ({
   json: {
     hasActivePlan: true,
     hasEnoughCredits: true,
@@ -139,19 +189,16 @@ const items = videoFiles.map((file, index) => ({
     accounts: submission.accounts,
     projects: submission.projects || null,
     briefs: submission.briefs || null,
-    video_file: [file],
+    bulk_video_url: url,
     bulkIndex: index + 1,
-    bulkTotal: videoCount,
+    bulkTotal: bulkVideoCount,
     creditsRemaining,
-    fileName: file.filename || file.name || `video_${index + 1}`,
-    fileUrl: file.url,
-    fileSize: file.size || null,
+    fileName: `Video ${index + 1} of ${bulkVideoCount}`,
+    fileUrl: url,
     system_title: index === 0 ? 'Bulk upload received' : null,
     system_message:
       index === 0
-        ? `${videoCount} videos are being reviewed. You'll receive results for each video as they complete.`
+        ? `${bulkVideoCount} videos are being reviewed. You'll receive results for each video as they complete.`
         : null,
   },
 }));
-
-return items;
