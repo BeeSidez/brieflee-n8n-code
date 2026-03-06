@@ -61,6 +61,19 @@ const hasActivePlan = paymentStatus === 'paid';
 const hasEnoughCredits = creditsRemaining > 0;
 const isBulk = /bulk/i.test(logicLabel) || videoCount > 1 || bulkVideoCount > 0;
 
+// --- SUBMISSION TYPE DETECTION ---
+const detectType = (url) => {
+  if (!url) return 'upload';
+  const lower = url.toLowerCase();
+  if (lower.includes('tiktok.com')) return 'TikTok';
+  if (lower.includes('instagram.com')) return 'Instagram';
+  return 'upload';
+};
+
+const singleType = isLinkSubmission
+  ? detectType(submission.video_link || submission.video_url || '')
+  : 'upload';
+
 const baseMeta = {
   submissionId: submission.id,
   creatorEmail: submission.creator_email || null,
@@ -81,6 +94,7 @@ if (!hasActivePlan) {
     {
       json: {
         ...baseMeta,
+        type: singleType,
         system_title: 'Video not reviewed',
         system_message:
           'Your video was not reviewed because there is no active payment plan on this account. Please update your billing to continue.',
@@ -95,6 +109,7 @@ if (!hasEnoughCredits) {
     {
       json: {
         ...baseMeta,
+        type: singleType,
         system_title: 'Video not reviewed',
         system_message:
           'Your video was not reviewed because there are not enough credits on this account. Please top up your credits and try again.',
@@ -109,6 +124,7 @@ if (!isLinkSubmission && !isBulk && videoCount === 0) {
     {
       json: {
         ...baseMeta,
+        type: singleType,
         system_title: 'Video not reviewed',
         system_message:
           'Your video was not reviewed because no video file was found in your submission. Please upload a video or provide a valid link and try again.',
@@ -127,6 +143,7 @@ if (!isBulk) {
         hasEnoughCredits: true,
         paymentStatus,
         isBulk: false,
+        type: singleType,
         videoCount,
         creditsRemaining,
         system_title: 'Video received',
@@ -145,6 +162,7 @@ if (videoCount > 0) {
       hasEnoughCredits: true,
       paymentStatus,
       isBulk: true,
+      type: 'upload',
       parentSubmissionId: submission.id,
       creator_name: submission.creator_name || null,
       creator_email: submission.creator_email || null,
@@ -179,6 +197,7 @@ return bulkVideoUrls.map((url, index) => ({
     hasEnoughCredits: true,
     paymentStatus,
     isBulk: true,
+    type: detectType(url),
     parentSubmissionId: submission.id,
     creator_name: submission.creator_name || null,
     creator_email: submission.creator_email || null,
