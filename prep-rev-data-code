@@ -73,7 +73,10 @@ const DO_NOT_CHECK = "DO NOT CHECK THIS";
 // --- Brief details ---
 const briefRecord = $('Get brief').first().json;
 const briefDescription = cleanText(briefRecord.brief_description);
-const briefAttachment = cleanText($('Extract from File').first().json.text || '');
+const extractedItems = $('Extract from File').all();
+const briefAttachment = extractedItems.length > 0
+  ? cleanText(extractedItems[0].json.text || '')
+  : '';
 
 // --- Example analysis (conditional — only if brief links an example video) ---
 const rawExampleAnalysis = briefRecord.example_analysis || '';
