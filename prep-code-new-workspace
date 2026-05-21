@@ -1,0 +1,58 @@
+// Get the Gemini AI raw text response
+const response = $input.first().json.candidates[0].content.parts[0].text;
+
+// Parse the JSON from Gemini
+const parsed = JSON.parse(response);
+
+// Helpers
+const formatList = (text) => {
+  if (!text) return "";
+  if (Array.isArray(text)) {
+    return text.map(item => `- ${String(item).trim()}`).join('\n');
+  }
+  if (typeof text !== 'string') {
+    return "";
+  }
+  const items = text
+    .split(/\d+\.\s+/)
+    .filter(item => item.trim());
+  return items
+    .map(item => `- ${item.trim()}`)
+    .join('\n');
+};
+
+const formatParagraph = (text) => {
+  if (!text) return "";
+  return String(text).replace(/\n/g, '\n');
+};
+
+// Format each field from Gemini
+const brandBio = formatParagraph(parsed.bio);
+const brandVoice = formatParagraph(parsed.voice);
+const brandCta = formatList(parsed.cta);
+const niche = formatList(parsed.niche);
+const targetAudience = formatList(parsed.audience);
+const objectives = formatList(parsed.objectives);
+const painPoints = formatList(parsed.pain);
+
+// Get webhook data
+const webhookBody = $('Webhook').first().json.body;
+
+// Prefer Gemini name if present, otherwise fall back to webhook
+const brandName = parsed.name || webhookBody.name || webhookBody.organisationName || "";
+
+// Return final JSON
+return {
+  json: {
+    name: brandName,
+    brand_bio: brandBio,
+    brand_voice: brandVoice,
+    brand_cta: brandCta,
+    niche: niche,
+    target_audience: targetAudience,
+    audience_objectives: objectives,
+    audience_pain_points: painPoints,
+    account_id: webhookBody.accountId,
+    website: webhookBody.website
+  }
+};
