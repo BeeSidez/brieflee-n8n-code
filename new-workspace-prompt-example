@@ -1,0 +1,45 @@
+{
+  "contents": [{
+    "parts": [{
+      "text": "You are a TikTok content strategist creating simple blueprints for brands to make viral short-form videos. Use casual, everyday language that creators and small business owners can actually use - no jargon like ROI, KPIs, B2B, psychographics, data-driven, or compliance. Talk like you're explaining to a friend who wants to make TikTok videos for this brand.\n\nBrand context: {{ $json.query.account_name }} ({{ $json.query.description }}), website: {{ $json.query['website '] }}\n\n**CREATE A TIKTOK CONTENT BLUEPRINT**\nWrite this for brand owners, UGC creators, TikTok affiliates making vertical videos (TikTok/Reels/Shorts):\n\n**Name**\nOfficial brand name for video captions (with spaces, eg 'Creator Scans', 'GlowSkin Co.', 'NailVibes Studio')\n\n**Bio**\n3-4 sentences that fully explain WHAT they do, WHO they help, and WHY they're awesome. This is what influencers read to understand the brand before making videos. Make it clear enough for anyone to get in 10 seconds.\n\n**Voice**\nHow should their TikTok videos *sound* and *feel*? Casual? Funny? Helpful? Warm? Confident? 2-3 sentences.\n\n**CTA** (3 simple calls-to-action)\nEasy things creators say at the end of videos:\n1. [Get/book/buy something specific]\n2. [Sign up/visit for something free/valuable]\n3. [Link in bio does X]\n\n**Niche** (3 specific areas they crush)\nWhat they're KNOWN FOR and dominate on TikTok (positive strengths):\n1. [Their main superpower]\n2. [What they do better than others]\n3. [Third thing they own]\n\n**Audience** (3 types of people who watch)\nWho loves their content and buys:\n1. [Main people who need this]\n2. [Second group]\n3. [Third group]\n\n**Objectives** (3 video goals)\nWhat every video should do:\n1. [Main goal]\n2. [Second goal]\n3. [Third goal]\n\n**Pain** (3 problems they solve)\nCustomer headaches they fix:\n1. [Biggest problem]\n2. [Second issue]\n3. [Third frustration]\n\nReturn valid JSON with keys: name, bio, voice, cta, niche, audience, objectives, pain\n\n**TIPS FOR ALL BRANDS:**\n- Name = TikTok caption ready (with spaces, not camelCase)\n- Bio = 3-4 full sentences explaining the business completely\n- Niches = positive strengths (what they're best at owning)\n- Think 'TikTok caption copy' - short, punchy, scroll-stopping\n\n**EXAMPLE FOR CREATOR SCANS:**\n{\n  \"name\": \"Creator Scans\",\n  \"bio\": \"Creator Scans helps brands work safely with TikTok creators. We scan creators' past posts to spot any issues before you partner with them. Never worry about brand reputation or broken rules again. Perfect for anyone hiring influencers.\",\n  \"voice\": \"Smart but chill, dropping creator tips like your experienced friend who knows all the platform rules.\",\n  \"cta\": [\"Scan your creator free\", \"Get our free creator guide\", \"Link in bio to check anyone instantly\"],\n  \"niche\": [\"Creator vetting\", \"Safe TikTok partnerships\", \"Brand protection\"], \n  \"audience\": [\"Brand owners\", \"Social media managers\", \"Marketing agencies\"],\n  \"objectives\": [\"Get free trial signups\", \"Show creator risks\", \"Build trust fast\"],\n  \"pain\": [\"Risky creator choices\", \"Reputation damage\", \"Wasted partnership time\"]\n}\n\n**EXAMPLE FOR NAIL SALON:**\n{\n  \"name\": \"NailVibes Studio\",\n  \"bio\": \"We do cute, durable nails that last all week without chipping. Walk-ins welcome with $25 sets that look amazing in photos. Fast service, trendy designs, perfect for TikTok.\",\n  \"voice\": \"Fun, sassy, showing nail inspo with quick 'how I did that' tips\",\n  \"cta\": [\"Book your set today\", \"$10 off first visit\", \"Link in bio for appts\"],\n  \"niche\": [\"Acrylic nails\", \"Nail art\", \"Walk-in nails\"],\n  \"audience\": [\"College girls\", \"TikTok scrollers\", \"Nail lovers 18-25\"],\n  \"objectives\": [\"Get bookings\", \"Go viral with nail hacks\", \"Build local buzz\"],\n  \"pain\": [\"Chipping nails\", \"Expensive salons\", \"No walk-ins\"]\n}"
+    }]
+  }],
+  "generationConfig": {
+    "response_mime_type": "application/json"
+  }
+}
+
+Example outpu 
+[
+  {
+    "candidates": [
+      {
+        "content": {
+          "parts": [
+            {
+              "text": "{\n  \"name\": \"Eyob's Journey\",\n  \"bio\": \"Eyob's Journey shares the powerful story of overcoming life's big challenges, step by step. We bring real, honest videos of growth, physical therapy, and daily wins to inspire you. This journey helps anyone feeling stuck or needing a boost to find their own strength and keep moving forward. Join our community and see what's possible when you never give up.\",\n  \"voice\": \"Authentic, warm, and super inspiring, like a friend sharing their deepest journey with you. It feels determined and full of hope, always cheering you on to face your own challenges.\",\n  \"cta\": [\n    \"Follow Eyob's journey for daily inspiration\",\n    \"Share this video to spread the message of hope\",\n    \"Link in bio to learn more about SohamForChange and how to help\"\n  ],\n  \"niche\": [\n    \"Inspiring resilience\",\n    \"Authentic personal growth vlogs\",\n    \"Building a supportive community\"\n  ],\n  \"audience\": [\n    \"Individuals navigating personal challenges\",\n    \"Families supporting loved ones with health journeys\",\n    \"Anyone seeking daily motivation and positive stories\"\n  ],\n  \"objectives\": [\n    \"Inspire and motivate viewers\",\n    \"Build a supportive and engaged community\",\n    \"Document real-time progress and milestones\"\n  ],\n  \"pain\": [\n    \"Feeling alone or overwhelmed by personal struggles\",\n    \"Lack of motivation or hope to keep going\",\n    \"Struggling to find strength in difficult situations\"\n  ]\n}"
+            }
+          ],
+          "role": "model"
+        },
+        "finishReason": "STOP",
+        "index": 0
+      }
+    ],
+    "usageMetadata": {
+      "promptTokenCount": 1331,
+      "candidatesTokenCount": 352,
+      "totalTokenCount": 2803,
+      "promptTokensDetails": [
+        {
+          "modality": "TEXT",
+          "tokenCount": 1331
+        }
+      ],
+      "thoughtsTokenCount": 1120,
+      "serviceTier": "standard"
+    },
+    "modelVersion": "gemini-2.5-flash",
+    "responseId": "e2oNaoLWBNCE7M8PnpLxsAU"
+  }
+]
