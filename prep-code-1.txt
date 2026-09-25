@@ -1,0 +1,119 @@
+const items = $input.all();
+
+const cleanText = (text) => {
+  if (!text) return "";
+  return text
+    .replace(/[\u{1F600}-\u{1F64F}]/gu, "")
+    .replace(/[\u{1F300}-\u{1F5FF}]/gu, "")
+    .replace(/[\u{1F680}-\u{1F6FF}]/gu, "")
+    .replace(/[\u{1F1E0}-\u{1F1FF}]/gu, "")
+    .replace(/[\u{2600}-\u{26FF}]/gu, "")
+    .replace(/[\u{2700}-\u{27BF}]/gu, "")
+    .replace(/[\u{FE00}-\u{FE0F}]/gu, "")
+    .replace(/[\u{200D}]/gu, "")
+    .replace(/[\u{20E3}]/gu, "")
+    .replace(/[\u{E0020}-\u{E007F}]/gu, "")
+    .replace(/[\u{1F900}-\u{1F9FF}]/gu, "")
+    .replace(/[\u{1FA00}-\u{1FA6F}]/gu, "")
+    .replace(/[\u{1FA70}-\u{1FAFF}]/gu, "")
+    .replace(/[\*\(\)\[\]\•\n]/g, "")
+    .replace(/[^\x20-\x7E\s]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+};
+
+const calculateAspectRatio = (width, height) => {
+  const gcd = (a, b) => b === 0 ? a : gcd(b, a % b);
+  const divisor = gcd(width, height);
+  return `${width / divisor}:${height / divisor}`;
+};
+
+const formatDuration = (seconds) => {
+  if (!seconds) return "0s";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  if (mins === 0) return `${secs}s`;
+  return `${mins}m ${secs}s`;
+};
+
+// --- QA CHECKLIST from submission ---
+const qaRaw = $('Get Submission').first().json.qa_checklist || [];
+const checklist = Array.isArray(qaRaw)
+  ? qaRaw.map(item => typeof item === 'string' ? item : (item.label || item)).filter(Boolean)
+  : typeof qaRaw === 'string' ? qaRaw.split(',').map(s => s.trim()).filter(Boolean)
+  : [];
+const checkedItems = checklist.length > 0
+  ? checklist.join(', ')
+  : '';
+
+// --- Account thresholds (only matter when no brief; default NONE) ---
+// Map checklist labels to threshold field names on account record
+const thresholdMap = {
+  'Product visibility':    { field: 'product_screen_time',  label: 'Product Screen Time' },
+  'Hook quality':          { field: 'hook_speed',           label: 'Hook Speed' },
+  'Visual hook':           { field: 'visual_hook',          label: 'Visual Hook' },
+  'Audio clarity':         { field: 'audio_clarity',        label: 'Audio Clarity' },
+  'Brand name mentioned':  { field: 'brand_mentions',       label: 'Brand Mentions' },
+  'Text legibility':       { field: 'text_legibility',      label: 'Text Legibility' },
+  'Scene pacing':          { field: 'engagement_pacing',    label: 'Engagement Pacing' },
+  'Creator visibility':    { field: 'face_time',            label: 'Face Time' },
+  'CTA present':           { field: 'cta_placement',        label: 'CTA Placement' },
+};
+
+const accountRecord = $('Get accounts').first().json;
+
+// Build threshold section string — only for checked items that have a value set
+const thresholdLines = checklist
+  .filter(item => thresholdMap[item] && accountRecord[thresholdMap[item].field])
+  .map(item => {
+    const { field, label } = thresholdMap[item];
+    return `- ${label}: ${accountRecord[field]}`;
+  });
+const thresholdSection = thresholdLines.length > 0
+  ? thresholdLines.join('\n')
+  : 'No thresholds set — evaluate all checked items as informational observations.';
+
+const brief = items.map((item) => {
+  // Brand context (KEEP — no brief means brand context is the only direction)
+  const brandBio = cleanText(accountRecord.brand_bio);
+  const brandVoice = cleanText(accountRecord.brand_voice);
+  const brandCta = cleanText(accountRecord.brand_cta);
+  const targetAudience = cleanText(accountRecord.target_audience);
+  const painPoints = cleanText(accountRecord.audience_pain_points);
+  const objectives = cleanText(accountRecord.audience_objectives);
+  const niche = cleanText(accountRecord.niche);
+
+  // Submission notes
+  const submissionNotes = cleanText($('Get Submission').first().json.submission_notes);
+
+  // Video metadata from Cloudinary
+  const videoWidth = $('cloudinary1').first().json.width ?? 0;
+  const videoHeight = $('cloudinary1').first().json.height ?? 0;
+  const videoAspectRatio = (videoWidth && videoHeight) ? calculateAspectRatio(videoWidth, videoHeight) : '';
+  const videoDuration = formatDuration($('cloudinary1').first().json.duration);
+  const videoFormat = ($('cloudinary1').first().json.format || '').toUpperCase();
+  const videoSize = $('cloudinary1').first().json.bytes ? ($('cloudinary1').first().json.bytes / (1000 * 1000)).toFixed(1) : "0";
+  const videoResolution = (videoWidth && videoHeight) ? `${videoWidth}x${videoHeight}` : '';
+  const videoFrameRate = $('cloudinary1').first().json.frame_rate ?? '';
+
+  return {
+    checkedItems,
+    thresholdSection,
+    brandBio,
+    brandVoice,
+    brandCta,
+    targetAudience,
+    painPoints,
+    objectives,
+    niche,
+    submissionNotes,
+    videoFormat,
+    videoSize,
+    videoResolution,
+    videoAspectRatio,
+    videoFrameRate,
+    videoDuration
+  };
+});
+
+return brief;
